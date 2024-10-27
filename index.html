@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シェアサイクルマップ</title>
+    <!-- Mapbox GL JS の CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet">
+    <style>
+        /* 地図全体を表示するためのスタイル */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+        #map { width: 100%; height: 100vh; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Mapbox GL JS の JavaScript -->
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
+<script>
+    // MapboxのAPIキーを追加
+    mapboxgl.accessToken = 'pk.eyJ1Ijoia2VpamkiLCJhIjoiY2pvMHZ5ODg4MDRrdjNwcXFwNnA2cWpiZSJ9.lIZIHvCxbduQcrBGEhJ-IQ';
+
+    // 地図の初期化
+    const map = new mapboxgl.Map({
+        container: 'map', // 地図を表示する要素のID
+        style: 'mapbox://styles/keiji/clq3vqvpg00o601re68ogfe9w', // Mapbox Studioで作成したスタイルのURL
+        center: [139.6917, 35.6895], // 地図の初期中心座標（例: 東京）
+        zoom: 12 // 初期ズームレベル
+    });
+
+    // 地図にコントロールを追加（ズームと回転のためのコントロール）
+    map.addControl(new mapboxgl.NavigationControl());
+
+    // スケールバーの追加
+    const scale = new mapboxgl.ScaleControl({
+        maxWidth: 80,
+        unit: 'metric' // メートル単位
+    });
+    map.addControl(scale);
+
+    // 地図がロードされたら、スケールバーを更新
+    map.on('load', () => {
+        scale.setUnit('metric'); // メートル単位に設定
+    });
+
+
+    // 現在位置ボタン（GeolocateControl）を追加
+    const geolocateControl = new mapboxgl.GeolocateControl({
+        positionOptions: {
+            enableHighAccuracy: true // 高精度で位置情報を取得
+        },
+        trackUserLocation: true, // ユーザーの位置を追跡
+        showUserLocation: true // ユーザーの位置にマーカーを表示
+    });
+    map.addControl(geolocateControl);
+
+    // 地図が読み込まれたら、現在位置を自動的に取得して移動
+    map.on('load', () => {
+        geolocateControl.trigger();
+    });
+</script>
+
+</body>
+</html>
