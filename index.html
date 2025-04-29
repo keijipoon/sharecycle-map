@@ -4,24 +4,106 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>シェアサイクルマップ</title>
-    <!-- Mapbox GL JS の CSS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet">
     <style>
-        /* 地図全体を表示するためのスタイル */
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
-        #map { width: 100%; height: 100vh; }
+        /* 基本スタイル: bodyとhtmlから余白を削除 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: sans-serif; /* フォント指定を追加 */
+        }
+        /* マップコンテナ: 画面全体に表示 */
+        #map {
+            position: absolute; /* 他の要素と重ねるために絶対配置 */
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ↓ 説明と凡例を表示するオーバーレイコンテナのスタイル */
+        #info-overlay {
+            position: absolute; /* マップの上に重ねる */
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.9); /* 半透明の白背景 */
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            z-index: 1; /* マップコントロールより手前に表示 */
+            max-width: 300px; /* 横幅が広がりすぎないように */
+        }
+
+        /* ↓ オーバーレイ内の見出しスタイル */
+        #info-overlay h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        /* ↓ オーバーレイ内の説明文スタイル */
+        #info-overlay p {
+            margin: 0 0 15px 0;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        /* ↓ 凡例のスタイル */
+        #info-overlay .legend h4 {
+            margin: 0 0 5px 0;
+            font-size: 1em;
+            color: #333;
+        }
+        #info-overlay .legend div {
+            margin-bottom: 5px;
+            display: flex; /* 色見本とテキストを横並び */
+            align-items: center; /* 垂直方向中央揃え */
+        }
+        /* ↓ 凡例の色見本のスタイル */
+        #info-overlay .legend span {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%; /* 円形にする場合 */
+            /* border: 1px solid #ccc; */ /* 境界線が必要な場合 */
+            margin-right: 8px;
+            flex-shrink: 0; /* 縮まないように */
+        }
+        #info-overlay .legend span.color-red { /* スタイルに合わせてクラス名と色を調整 */
+            background-color: #E60012; /* 例: ドコモ・バイクシェアのような赤 */
+        }
+        #info-overlay .legend span.color-yellow { /* スタイルに合わせてクラス名と色を調整 */
+            background-color: #FFD700; /* 例: HELLO CYCLINGのような黄色 */
+        }
+        /* 他の色があればここに追加 */
+
     </style>
 </head>
 <body>
 
+<div id="info-overlay">
+    <h1>つながるシェアサイクルマップ：ポート台数と近隣ネットワーク</h1>
+    <p>
+        このマップでは、主要なシェアサイクルサービスのポート（ステーション）の位置を確認できます。<br><br>
+        特徴として、1.5km以内にあるポート同士を線で結び、自転車での移動範囲やつながりを視覚的に表現しています。<br><br>
+        地図を自由に操作して、便利なポートネットワークをご活用ください。
+        </p>
+    <div class="legend">
+        <h4>凡例</h4>
+        <div><span class="color-red"></span>ドコモ・バイクシェア</div>
+        <div><span class="color-yellow"></span>HELLO CYCLING</div>
+        </div>
+</div>
+
 <div id="map"></div>
 
-<!-- Mapbox GL JS の JavaScript -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
 <script>
     // MapboxのAPIキーを追加
     mapboxgl.accessToken = 'pk.eyJ1Ijoia2VpamkiLCJhIjoiY2pvMHZ5ODg4MDRrdjNwcXFwNnA2cWpiZSJ9.lIZIHvCxbduQcrBGEhJ-IQ';
-
     // 地図の初期化
     const map = new mapboxgl.Map({
         container: 'map', // 地図を表示する要素のID
@@ -31,20 +113,21 @@
     });
 
     // 地図にコントロールを追加（ズームと回転のためのコントロール）
-    map.addControl(new mapboxgl.NavigationControl());
+    // ↓ 位置を 'top-right' などに変更してオーバーレイと重ならないようにする (任意)
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     // スケールバーの追加
     const scale = new mapboxgl.ScaleControl({
         maxWidth: 80,
         unit: 'metric' // メートル単位
     });
-    map.addControl(scale);
+    // ↓ 位置を 'bottom-left' などに変更してオーバーレイと重ならないようにする (任意)
+    map.addControl(scale, 'bottom-left');
 
     // 地図がロードされたら、スケールバーを更新
     map.on('load', () => {
         scale.setUnit('metric'); // メートル単位に設定
     });
-
 
     // 現在位置ボタン（GeolocateControl）を追加
     const geolocateControl = new mapboxgl.GeolocateControl({
@@ -54,12 +137,65 @@
         trackUserLocation: true, // ユーザーの位置を追跡
         showUserLocation: true // ユーザーの位置にマーカーを表示
     });
-    map.addControl(geolocateControl);
+    // ↓ 位置を 'top-right' などに変更してオーバーレイと重ならないようにする (任意)
+    map.addControl(geolocateControl, 'top-right');
 
     // 地図が読み込まれたら、現在位置を自動的に取得して移動
     map.on('load', () => {
-        geolocateControl.trigger();
+        // ユーザーが手動でボタンを押すのを待つ場合は、以下の行をコメントアウトまたは削除
+        // geolocateControl.trigger();
     });
+
+    // --- ポップアップ表示の追加例 (もしMapbox Studioで設定していない場合) ---
+    // Mapbox Studio のレイヤー名に合わせてください (例: 'share-cycle-ports')
+    const layerName = 'share-cycle-ports'; // 実際のレイヤー名に置き換える
+
+    // map.on('load', ...) の中や、地図が完全にロードされた後に追加
+    /*
+    map.on('load', () => {
+        // ... 既存の load イベント内の処理 ...
+
+        // ポートレイヤーが存在するか確認
+        if (map.getLayer(layerName)) {
+            // マウスカーソルをポインターに変更
+            map.on('mouseenter', layerName, () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', layerName, () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            // クリック時にポップアップを表示
+            map.on('click', layerName, (e) => {
+                // クリックされたフィーチャのプロパティを取得
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const properties = e.features[0].properties;
+
+                // プロパティ名を実際のデータに合わせてください (例: name, service, bikes_available)
+                const description = `
+                    <h3>${properties.name || '名称未設定'}</h3>
+                    <p>サービス: ${properties.service || '不明'}</p>
+                    <p>利用可能台数: ${properties.bikes_available !== undefined ? properties.bikes_available : '不明'}</p>
+                `;
+
+                // Ensure that if the map is zoomed out such that multiple
+                // copies of the feature are visible, the popup appears
+                // over the copy being pointed to.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(description)
+                    .addTo(map);
+            });
+        } else {
+            console.warn(`Layer "${layerName}" not found in the style.`);
+        }
+    });
+    */
+
 </script>
 
 </body>
